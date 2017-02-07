@@ -26,7 +26,6 @@ def print_image(image, ax = pyp, reshape_bool=True, flip = True):
         ax = ax.pcolormesh(image[0], cmap='bone')
     return ax
 
-
 def create_image_display(images, pred, label, reshape_bool = True, nrows = 2, ncols = 4):
     num_frames = int(len(images)/(nrows*ncols))
     pic_ind = 0
@@ -36,28 +35,21 @@ def create_image_display(images, pred, label, reshape_bool = True, nrows = 2, nc
         for axis in ax:
             picture = print_image(images[pic_ind], axis, reshape_bool=reshape_bool, flip=True)
             pyp.pause(0.001)
-            face_color = add_face_points(picture.get_facecolors(), label[pic_ind], 'blue') if label is not None else picture.get_facecolors()
-            face_color = add_face_points(picture.get_facecolors(), pred[pic_ind], 'red') if pred is not None else picture.get_facecolors()
+            face_color = add_face_points(picture.get_facecolors(), label[pic_ind], [0,1,0,1]) if label is not None else picture.get_facecolors()
+            face_color = add_face_points(picture.get_facecolors(), pred[pic_ind], [1,0,0,1]) if pred is not None else picture.get_facecolors()
             picture.set_facecolor(face_color)
             pic_ind += 1
 
-
 def add_face_points(face_map, label, color=[1,1,1,1]):
     for coord in label.reshape(15,2):
-        if color == 'red':
-            face_map[coord_to_ind(coord[0], coord[1],96)] = [1,0,0,1]
-            face_map[coord_to_ind(coord[0]+1, coord[1]+1,96)] = [1,0,0,1]
-            face_map[coord_to_ind(coord[0]-1, coord[1]-1,96)] = [1,0,0,1]
-            face_map[coord_to_ind(coord[0]-1, coord[1]+1,96)] = [1,0,0,1]
-            face_map[coord_to_ind(coord[0]+1, coord[1]-1,96)] = [1,0,0,1]
-        elif color == 'blue':
-            face_map[coord_to_ind(coord[0], coord[1],96)] = [0,0,1,1]
-            face_map[coord_to_ind(coord[0]+1, coord[1]+1,96)] = [0,0,1,1]
-            face_map[coord_to_ind(coord[0]-1, coord[1]+1,96)] = [0,0,1,1]
-            face_map[coord_to_ind(coord[0]-1, coord[1]+1,96)] = [0,0,1,1]
-            face_map[coord_to_ind(coord[0]+1, coord[1]-1,96)] = [0,0,1,1]
-        else:
+        try:
             face_map[coord_to_ind(coord[0], coord[1],96)] = color
+            face_map[coord_to_ind(coord[0]+1, coord[1]+1,96)] = color
+            face_map[coord_to_ind(coord[0]-1, coord[1]+1,96)] = color
+            face_map[coord_to_ind(coord[0]-1, coord[1]+1,96)] = color
+            face_map[coord_to_ind(coord[0]+1, coord[1]-1,96)] = color
+        except IndexError:
+            continue
     return face_map
 
 def coord_to_ind(x,y, length):
@@ -65,10 +57,8 @@ def coord_to_ind(x,y, length):
 
 def reshape(image, flip=True):
     length = int(np.sqrt(image.shape[0]))
-    if flip:
-        return np.flipud(image).reshape(1,1,length,length)
-    else:
-        return image.reshape(1,1,length,length)
+    return np.flipud(image).reshape(1,1,length,length) if flip else image.reshape(1,1,length,length)
+
 
 
 def get_batch(data, labels, batch_size=None, reshape_bool=True):
@@ -123,19 +113,14 @@ def plot_featuremap(model, layers, images, filters = 0):
                 ax += 1
 
 def rotate_images(images, degree, reshape_bool=True):
-    new_images = np.zeros(images.shape)
-    for i in range(0,len(images)):
-        new_images[i] = rotate_image(images[i], degree, reshape_bool)
-    return new_images
+    return np.vstack([rotate_image(images, degree, reshape_bool) for image in images])
 
 def rotate_image(image, degree, reshape_bool = True):
-    return rotate(reshape(image,False)[0][0], degree).flatten() if reshape_bool else rotate(image[0], degree)
+    return rotate(reshape(image,False)[0][0], degree).flatten() if reshape_bool else rotate(image[0], degree).flatten()
 
 def rotate_labels(labels, degree, center = [47,47]):
-    new_labels = new_images = np.zeros(labels.shape)
-    for i in range(0, len(labels)):
-        new_labels[i] = rotate_label(labels[i], degree, center)
-    return new_labels
+    return np.vstack([rotate_label(labels[i], degree, center) for label in labels])
+
 
 def rotate_label(label, degree, center = [47,47]):
     return (apply_rotation_matrix(degree, (label.reshape(15,2) - center).transpose()).transpose() + center).flatten()
